@@ -3,61 +3,62 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Flashcard Quiz</title>
+  <meta name="color-scheme" content="light">
+  <title>1. 第一文型 - フラッシュカード</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="frame">
     <header class="topbar">
       <h1><span class="sec">1.</span> 第一文型</h1>
-      <button id="menuBtn" class="icon-btn" aria-label="メニュー" title="メニュー">
-        <!-- hamburger -->
-        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-          <path d="M3 7h18M3 12h18M3 17h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </button>
     </header>
-
-    <div id="menuPanel" class="menu hidden" role="dialog" aria-modal="false">
-      <button id="restart" class="menu-item">最初から</button>
-      <label class="menu-item">
-        速度
-        <select id="rate">
-          <option value="0.8">0.8×</option>
-          <option value="0.9">0.9×</option>
-          <option value="1.0" selected>1.0×</option>
-          <option value="1.1">1.1×</option>
-          <option value="1.2">1.2×</option>
-          <option value="1.5">1.5×</option>
-        </select>
-      </label>
-    </div>
 
     <main class="stage">
       <section id="card" class="card" role="button" aria-pressed="false" aria-live="polite" title="タップで答えを表示/隠す">
         <div class="badge"><span id="progress">0/0</span></div>
+
+        <!-- Q / A -->
         <p id="question" class="qa q">読み込み中…</p>
         <p id="answer" class="qa a hidden">—</p>
+
+        <!-- Audio controls (Answer面で表示) -->
+        <div id="audioWrap" class="audio hidden" aria-hidden="true">
+          <button id="playBtn" class="circle teal" aria-label="再生/一時停止">
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+              <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"></polygon>
+            </svg>
+          </button>
+
+          <div id="track" class="track">
+            <div id="bar" class="bar"></div>
+          </div>
+
+          <label class="rate">
+            <select id="rate">
+              <option value="0.8">0.8×</option>
+              <option value="0.9">0.9×</option>
+              <option value="1.0" selected>1.0×</option>
+              <option value="1.1">1.1×</option>
+              <option value="1.2">1.2×</option>
+              <option value="1.5">1.5×</option>
+            </select>
+          </label>
+        </div>
+        <audio id="audio" preload="none" class="hidden"></audio>
       </section>
 
       <nav class="controls">
         <button id="prev" class="circle yellow" aria-label="戻る" title="戻る">
-          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-            <path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
+          <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         </button>
 
         <button id="retry" class="pill coral">
-          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-            <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
+          <svg viewBox="0 0 24 24" width="20" height="20"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           もう一度
         </button>
 
         <button id="next" class="circle teal" aria-label="次へ" title="次へ">
-          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-            <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
+          <svg viewBox="0 0 24 24" width="22" height="22"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         </button>
       </nav>
     </main>
