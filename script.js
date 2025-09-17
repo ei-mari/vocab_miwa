@@ -1,65 +1,46 @@
-// Simple flashcard quiz for GitHub Pages
+// Flashcard logic (card tap to reveal, pastel UI)
 let cards = [];
 let idx = 0;
 let revealed = false;
-let correctCount = 0;
 let synth = window.speechSynthesis;
 let speechRate = 1.0;
 
-function detectLang(text) {
-  // crude detection: if includes Hiragana/Katakana/Kanji, assume Japanese
-  for (const ch of text) {
-    const code = ch.codePointAt(0);
-    if (
-      (code >= 0x3040 && code <= 0x30ff) || // Hiragana/Katakana
-      (code >= 0x4e00 && code <= 0x9fff)    // CJK Unified Ideographs
-    ) return 'ja-JP';
+function detectLang(text){
+  for (const ch of text){
+    const c = ch.codePointAt(0);
+    if ((c>=0x3040 && c<=0x30ff) || (c>=0x4e00 && c<=0x9fff)) return 'ja-JP';
   }
   return 'en-US';
 }
-
-function speak(text) {
-  if (!synth) return;
+function speak(text){
+  if(!synth) return;
   const u = new SpeechSynthesisUtterance(text);
   u.rate = speechRate;
   u.lang = detectLang(text);
-  synth.cancel();
-  synth.speak(u);
+  synth.cancel(); synth.speak(u);
 }
 
-async function load() {
-  try {
+async function load(){
+  try{
     const res = await fetch('data.json', { cache: 'no-store' });
     cards = await res.json();
-  } catch (e) {
+  }catch(e){
     cards = [{ q: '読み込みに失敗しました', a: 'Failed to load data.json' }];
   }
-  document.getElementById('progress').textContent = `1/${cards.length}`;
   render();
 }
 
-function render() {
+function render(){
   const qEl = document.getElementById('question');
   const aEl = document.getElementById('answer');
-  const revealBtn = document.getElementById('reveal');
-  const gotBtn = document.getElementById('gotIt');
-  const missBtn = document.getElementById('missed');
-  const nextBtn = document.getElementById('next');
-  const resultEl = document.getElementById('result');
+  const progressEl = document.getElementById('progress');
 
-  // END screen first (avoid out-of-range access)
-  if (idx >= cards.length) {
+  if (idx >= cards.length){
+    // end screen
     qEl.textContent = '修了！おつかれさま 🎉';
-    aEl.textContent = `できた数: ${correctCount} / ${cards.length}`;
-    aEl.classList.remove('hidden');
-    aEl.classList.add('revealed');
-    revealBtn.disabled = true;
-    nextBtn.disabled = true;
-    if (gotBtn) gotBtn.disabled = true;
-    if (missBtn) missBtn.disabled = true;
-    resultEl.classList.remove('hidden');
-    resultEl.textContent = '「最初から」を押すとリセットできます。';
-    document.getElementById('progress').textContent = `${cards.length}/${cards.length}`;
+    aEl.textContent = `カード数: ${cards.length}`;
+    qEl.classList.remove('hidden'); aEl.classList.remove('hidden');
+    progressEl.textContent = `${cards.length}/${cards.length}`;
     return;
   }
 
@@ -67,86 +48,66 @@ function render() {
   qEl.textContent = card.q;
   aEl.textContent = card.a;
 
-  // reveal state
-  if (revealed) {
+  // show/hide
+  if (revealed){
+    qEl.classList.add('hidden');
     aEl.classList.remove('hidden');
-    aEl.classList.add('revealed');
-    revealBtn.textContent = '隠す';
-  } else {
+  }else{
+    qEl.classList.remove('hidden');
     aEl.classList.add('hidden');
-    aEl.classList.remove('revealed');
-    revealBtn.textContent = '答えを表示';
   }
-
-  // progress
-  document.getElementById('progress').textContent = `${idx + 1}/${cards.length}`;
-
-  // normal state
-  revealBtn.disabled = false;
-  nextBtn.disabled = false;
-  if (gotBtn) gotBtn.disabled = false;
-  if (missBtn) missBtn.disabled = false;
-  resultEl.classList.add('hidden');
+  progressEl.textContent = `${idx + 1}/${cards.length}`;
 }
 
-function next() {
-  if (idx < cards.length - 1) {
-    idx++;
-    revealed = false;
-    render();
-  } else if (idx === cards.length - 1) {
-    // move to end screen
-    idx++;
-    render();
-  }
+function next(){
+  if (idx < cards.length - 1){ idx++; revealed = false; render(); }
+  else { idx++; render(); }
+}
+function prev(){
+  if (idx > 0){ idx--; revealed = false; render(); }
+}
+function retry(){
+  revealed = false; render();
+}
+function restartAll(){
+  idx = 0; revealed = false; render();
 }
 
-function toggleReveal() {
-  revealed = !revealed;
-  render();
-}
-
-function restart() {
-  idx = 0;
-  revealed = false;
-  correctCount = 0;
-  render();
-}
-
-function gotIt() {
-  correctCount++;
-  next();
-}
-
-function missed() {
-  next();
-}
-
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', ()=>{
   load();
 
-  document.getElementById('reveal').addEventListener('click', toggleReveal);
+  // card tap to toggle reveal
+  const card = document.getElementById('card');
+  card.addEventListener('click', ()=>{ revealed = !revealed; render(); });
+
+  // nav buttons
   document.getElementById('next').addEventListener('click', next);
-  document.getElementById('restart').addEventListener('click', restart);
-  document.getElementById('gotIt').addEventListener('click', gotIt);
-  document.getElementById('missed').addEventListener('click', missed);
+  document.getElementById('prev').addEventListener('click', prev);
+  document.getElementById('retry').addEventListener('click', retry);
+  document.getElementById('restart').addEventListener('click', restartAll);
 
-  document.getElementById('speakQ').addEventListener('click', () => {
-    const card = cards[Math.min(idx, cards.length - 1)];
-    speak(card.q || '');
+  // menu toggle
+  const menuBtn = document.getElementById('menuBtn');
+  const menu = document.getElementById('menuPanel');
+  menuBtn.addEventListener('click', ()=>{
+    menu.classList.toggle('hidden');
   });
-  document.getElementById('speakA').addEventListener('click', () => {
-    const card = cards[Math.min(idx, cards.length - 1)];
-    speak(card.a || '');
+  document.addEventListener('click', (e)=>{
+    if (!menu.contains(e.target) && e.target !== menuBtn) menu.classList.add('hidden');
   });
 
-  document.getElementById('rate').addEventListener('change', (e) => {
+  // rate
+  document.getElementById('rate').addEventListener('change', (e)=>{
     speechRate = parseFloat(e.target.value);
   });
 
   // keyboard shortcuts
-  document.addEventListener('keydown', (e) => {
-    if (e.key === ' ') { e.preventDefault(); toggleReveal(); }
+  document.addEventListener('keydown', (e)=>{
     if (e.key === 'ArrowRight') next();
+    if (e.key === 'ArrowLeft') prev();
+    if (e.key === ' ') { e.preventDefault(); revealed = !revealed; render(); }
   });
+
+  // optional: speak when revealing answer (comment out if不要)
+  // card.addEventListener('click', ()=>{ if(revealed) speak(cards[idx].a || ''); else speak(cards[idx].q || ''); });
 });
