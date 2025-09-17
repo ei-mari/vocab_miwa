@@ -1,10 +1,9 @@
-// TTS-only flashcard (MP3不要)
+// TTS-only flashcard: tap to reveal & auto speak with female voice
 let cards = [];
 let idx = 0;
 let revealed = false;
 
 const playBtn = document.getElementById('playBtn');
-const track = document.getElementById('track');
 const bar = document.getElementById('bar');
 const rateSel = document.getElementById('rate');
 const audioWrap = document.getElementById('audioWrap');
@@ -12,6 +11,33 @@ const audioWrap = document.getElementById('audioWrap');
 let synth = window.speechSynthesis;
 let speechRate = 1.0;
 let ttsTimer = null;
+let voices = [];
+
+// ---- voice helpers ----
+function loadVoices() { voices = synth ? synth.getVoices() : []; }
+if (synth) {
+  loadVoices();
+  synth.onvoiceschanged = loadVoices;
+}
+
+// 名前で“女性らしい”声を優先（端末により異なるためベストエフォート）
+const FEMALE_CANDIDATES = {
+  'ja': ['Kyoko','Nozomi','Mizuki','Hina','Nanami','Sakura','Sayaka','Google 日本語'],
+  'en-US': ['Samantha','Aria','Jenny','Zira','Google US English'],
+  'en-GB': ['Google UK English Female','Sonia','Libby']
+};
+function pickFemaleVoice(lang) {
+  if (!voices.length) return null;
+  const base = lang.split('-')[0];          // 'ja', 'en'
+  const inLang = voices.filter(v => v.lang && v.lang.startsWith(lang) || v.lang.startsWith(base));
+  const names = (FEMALE_CANDIDATES[lang] || []).concat(FEMALE_CANDIDATES[base] || []);
+  for (const name of names) {
+    const hit = inLang.find(v => v.name.includes(name));
+    if (hit) return hit;
+  }
+  // fallback:その言語の最初の声
+  return inLang[0] || null;
+}
 
 function detectLang(text){
   for (const ch of text){
@@ -21,6 +47,7 @@ function detectLang(text){
   return 'en-US';
 }
 
+// ---- app ----
 async function load(){
   try{
     const res = await fetch('data.json', { cache: 'no-store' });
@@ -53,6 +80,8 @@ function render(){
     qEl.classList.add('hidden');
     aEl.classList.remove('hidden');
     audioWrap.classList.remove('hidden');
+    // 画面タップで答え面になった瞬間に自動再生
+    startTTS();
   }else{
     qEl.classList.remove('hidden');
     aEl.classList.add('hidden');
@@ -71,27 +100,27 @@ function stopTTS(){
   updatePlayIcon(false);
 }
 
-function next(){
-  stopTTS();
-  if (idx < cards.length - 1){ idx++; revealed = false; render(); }
-  else { idx++; render(); }
-}
+function next(){ stopTTS(); if (idx < cards.length - 1){ idx++; revealed = false; render(); } else { idx++; render(); } }
 function prev(){ if (idx>0){ stopTTS(); idx--; revealed = false; render(); } }
-function retry(){
-  stopTTS();
-  if (revealed) startTTS(); // 英語面で「もう一度」
-}
+function retry(){ stopTTS(); if (revealed) startTTS(); }
 
 function startTTS(){
   const text = (cards[idx] && cards[idx].a) || '';
   if (!text) return;
 
+  // voicesがまだ来てない場合のリトライ（ブラウザ仕様対策）
+  if (synth && voices.length === 0) { setTimeout(startTTS, 120); return; }
+
   const u = new SpeechSynthesisUtterance(text);
   u.rate = speechRate;
-  u.lang = detectLang(text);
+  const lang = detectLang(text);
+  u.lang = lang;
+  const voice = pickFemaleVoice(lang);
+  if (voice) u.voice = voice;
+
   u.onend = () => { updatePlayIcon(false); finishProgress(); };
 
-  // ざっくり進捗（文字数ベースの見積もり）
+  // 簡易プログレス（文字数から推定）
   const estSec = Math.max(1.6, Math.min(6, text.length / 10)) / (speechRate || 1);
   const start = performance.now();
   if (ttsTimer) clearInterval(ttsTimer);
@@ -101,8 +130,8 @@ function startTTS(){
     if (p >= 1){ clearInterval(ttsTimer); ttsTimer = null; }
   }, 60);
 
-  synth.cancel();            // 直前の読み上げを止めて
-  synth.speak(u);            // 読み上げ
+  synth.cancel();            // 直前の読み上げを止める
+  synth.speak(u);            // 再生
   updatePlayIcon(true);
 }
 
@@ -116,30 +145,26 @@ function updatePlayIcon(playing){
 document.addEventListener('DOMContentLoaded', ()=>{
   load();
 
-  // カードタップでQ/A切替（答え面でTTS UI表示）
-  const card = document.getElementById('card');
-  card.addEventListener('click', ()=>{ revealed = !revealed; render(); });
+  // カード全体をタップでQ/A切替 → 答え面なら即TTS
+  document.getElementById('card').addEventListener('click', ()=>{
+    revealed = !revealed; render();
+  });
 
   // ナビ
   document.getElementById('next').addEventListener('click', next);
   document.getElementById('prev').addEventListener('click', prev);
   document.getElementById('retry').addEventListener('click', retry);
 
-  // 再生ボタン（TTSトグル）
+  // 再生ボタン（手動トグル）
   playBtn.addEventListener('click', (e)=>{
     e.stopPropagation();
-    if (synth && synth.speaking){ stopTTS(); }
-    else { startTTS(); }
+    if (synth && synth.speaking){ stopTTS(); } else { startTTS(); }
   });
 
   // 速度
   rateSel.addEventListener('change', (e)=>{
     speechRate = parseFloat(e.target.value);
-    // 再生中なら速度変更後に読み直す
-    if (synth && synth.speaking){
-      stopTTS();
-      startTTS();
-    }
+    if (synth && synth.speaking){ stopTTS(); startTTS(); }
   });
 
   // キー操作
